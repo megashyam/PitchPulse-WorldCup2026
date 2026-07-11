@@ -1,0 +1,30 @@
+# WC2026 Match Intelligence Platform — backend requirements
+# Install: pip install -r requirements.txt
+
+# Web framework / server
+fastapi>=0.110,<1.0
+uvicorn[standard]>=0.29,<1.0
+sse-starlette>=2.0,<3.0
+pydantic>=2.6,<3.0
+
+# Data / cache
+redis>=5.0,<6.0
+
+# HTTP
+httpx>=0.27,<1.0
+python-dotenv>=1.0,<2.0
+
+# ML / numerics
+numpy>=1.26,<2.0
+scikit-learn>=1.4,<2.0
+sentence-transformers>=2.6,<3.0
+
+# Vector DB
+weaviate-client>=4.6,<5.0
+
+# Optional: Google Trends signal (mock fallback used automatically if absent)
+pytrends>=4.9,<5.0
+
+# Dev / test (see backend/tests/)
+pytest>=8.0,<9.0
+ruff>=0.4,<1.0

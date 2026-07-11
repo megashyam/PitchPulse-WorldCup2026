@@ -1,0 +1,70 @@
+services:
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  weaviate:
+    image: semitechnologies/weaviate:1.27.0
+    container_name: wc2026-weaviate
+    ports:
+      - "8080:8080"
+      - "50051:50051" 
+    environment:
+      QUERY_DEFAULTS_LIMIT: 25
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: "true"
+      PERSISTENCE_DATA_PATH: "/var/lib/weaviate"
+      DEFAULT_VECTORIZER_MODULE: "none"   
+      ENABLE_MODULES: ""
+      CLUSTER_HOSTNAME: "node1"
+      STANDALONE_MODE: "true"
+    volumes:
+      - ./weaviate_data:/var/lib/weaviate
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/v1/.well-known/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  api:
+    build:
+      context: ./backend
+
+    command: uvicorn api.main_hybrid:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    environment:
+      REDIS_URL: redis://redis:6379
+      WEAVIATE_HOST: weaviate
+      WEAVIATE_PORT: "8080"
+      WEAVIATE_GRPC_PORT: "50051"
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
+      TRIGGER_TOKEN: ${TRIGGER_TOKEN:-}
+      ODDS_API_KEY: ${ODDS_API_KEY:-}
+      SELF_BASE_URL: http://localhost:8000
+      WC26_SOURCE_TZ: ${WC26_SOURCE_TZ:-America/New_York}
+
+      WEB_CONCURRENCY: "1"
+    depends_on:
+      redis:
+        condition: service_healthy
+      weaviate:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+
+volumes:
+  redis_data:

@@ -1,0 +1,170 @@
+"""Narrative routes for spikes, trending topics, and arc synthesis.
+
+The API exposes both the raw spike feed and the broader tournament-wide
+trending view. Its SSE endpoint is pub/sub-backed so clients only re-read the
+Redis payload when the detector publishes an update, while the arc endpoint
+can synthesize missing narrative text on demand.
+"""
+
+import asyncio
+import json
+import logging
+
+from fastapi import APIRouter, Depends, HTTPException, Request
+from sse_starlette.sse import EventSourceResponse
+
+from agents import narrative_arc_agent
+from agents.narrative_spike_detector import get_detector
+from api.routes._security import require_trigger_token
+from api.routes._sse import pubsub_sse
+
+router = APIRouter()
+log = logging.getLogger(__name__)
+
+
+@router.get("/spikes")
+async def get_spikes(request: Request, limit: int = 20):
+    """Return the newest narrative spikes from Redis."""
+    r = request.app.state.redis
+    raw_list = await r.lrange("narrative:spikes:feed", 0, min(limit - 1, 49))
+    if not raw_list:
+        return {
+            "spikes": [],
+            "count": 0,
+            "message": (
+                "No spikes yet. The narrative worker runs every 60s and detects "
+                "anomalies after ~30 ticks. Use GET /narrative/trigger to force "
+                "a tick immediately."
+            ),
+        }
+    spikes = [json.loads(s) for s in raw_list]
+    return {
+        "spikes": spikes,
+        "count": len(spikes),
+        "updated_at": spikes[0].get("timestamp") if spikes else None,
+    }
+
+
+@router.get("/spikes/{spike_id}")
+async def get_spike(spike_id: str, request: Request):
+    r = request.app.state.redis
+    raw = await r.get(f"narrative:spike:{spike_id}")
+    if not raw:
+        raise HTTPException(404, f"Spike {spike_id} not found")
+    return json.loads(raw)
+
+
+@router.get("/trending")
+async def get_trending(request: Request, limit: int = 12):
+    """Return the tournament-wide trending narrative list."""
+    r = request.app.state.redis
+    raw = await r.get("narrative:trending:latest")
+    items = json.loads(raw) if raw else []
+    return {
+        "spikes": items[: min(limit, len(items))],
+        "count": len(items),
+        "updated_at": items[0].get("timestamp") if items else None,
+    }
+
+
+@router.get("/stream")
+async def narrative_stream(request: Request):
+    """Stream narrative updates over pub/sub-backed SSE."""
+    r = request.app.state.redis
+
+    async def generator():
+        async for event in pubsub_sse(
+            redis_client=r,
+            channel="narrative_spike",
+            key="narrative:stream:latest",
+            event_name="narrative_spike",
+            is_disconnected=request.is_disconnected,
+            fallback_poll_s=30.0,
+        ):
+            yield event
+
+    return EventSourceResponse(generator(), ping=15)
+
+
+@router.get("/arc/{spike_id}")
+async def get_or_generate_arc(spike_id: str, request: Request):
+    """Return a spike arc, synthesizing it when the cache is empty."""
+    r = request.app.state.redis
+    raw = await r.get(f"narrative:spike:{spike_id}")
+    if not raw:
+        raise HTTPException(404, f"Spike {spike_id} not found")
+
+    spike_dict = json.loads(raw)
+
+    if spike_dict.get("arc"):
+        return {"spike_id": spike_id, "arc": spike_dict["arc"], "cached": True}
+
+    from agents.narrative_spike_detector import NarrativeSpike
+
+    try:
+        spike = NarrativeSpike(
+            spike_id=spike_dict["spike_id"],
+            topic=spike_dict["topic"],
+            tick=spike_dict["tick"],
+            severity=spike_dict["severity"],
+            sources=spike_dict["sources"],
+            source_names=spike_dict.get("source_names", []),
+            summary=spike_dict["summary"],
+            timestamp=spike_dict.get("timestamp", 0),
+        )
+    except Exception as e:
+        raise HTTPException(500, f"Failed to reconstruct spike: {e}")
+
+    loop = asyncio.get_running_loop()
+    arc = await narrative_arc_agent.synthesise(spike, loop)
+
+    spike_dict["arc"] = arc
+    await r.setex(f"narrative:spike:{spike_id}", 86_400, json.dumps(spike_dict))
+
+    return {"spike_id": spike_id, "arc": arc, "cached": False}
+
+
+@router.api_route(
+    "/trigger",
+    methods=["GET", "POST"],
+    dependencies=[Depends(require_trigger_token)],
+)
+async def trigger_narrative(request: Request):
+    """Force one detector tick immediately."""
+    r = request.app.state.redis
+    loop = asyncio.get_running_loop()
+    detector = get_detector()
+
+    spikes = await detector.tick(loop)
+    if not spikes:
+        tick = detector._tick_count
+        if tick < 30:
+            return {
+                "status": "warming_up",
+                "tick": tick,
+                "message": (
+                    f"IsolationForest needs {30 - tick} more ticks before scoring."
+                ),
+            }
+        return {
+            "status": "no_spikes",
+            "tick": tick,
+            "message": "No anomalies detected this tick — all topics within baseline.",
+        }
+
+    results = []
+    for spike in spikes:
+        arc = await narrative_arc_agent.synthesise(spike, loop)
+        spike.arc = arc
+        spike_dict = spike.to_dict()
+        spike_json = json.dumps(spike_dict)
+        await r.setex(f"narrative:spike:{spike.spike_id}", 86_400, spike_json)
+        await r.lpush("narrative:spikes:feed", spike_json)
+        await r.ltrim("narrative:spikes:feed", 0, 49)
+        await r.expire("narrative:spikes:feed", 86_400)
+        await r.setex("narrative:stream:latest", 3_600, spike_json)
+        await r.publish("narrative_spike", spike_json)
+        results.append(spike_dict)
+        log.info(f"Trigger: stored spike {spike.spike_id}")
+
+    return {"status": "written", "spikes_detected": len(results), "spikes": results}
