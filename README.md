@@ -17,6 +17,7 @@ PitchPulse was built to solve a critical data availability problem for live spor
 ###
 
 ***
+
 ## Index
 
 * [Why This Project?](#why-this-project)
@@ -184,19 +185,19 @@ PitchPulse was built to solve a critical data availability problem for live spor
 ```
 worldcup26.ir + StatsBomb ──► hybrid_producer (30s poll) ──► MatchState
                                                                    │
-                                                                   ▼
+                                                                   ⭣
                                                              Redis (only store)
                           ┌──────────┬───────────┬──────────────┬───────────┐
-                          ▼          ▼           ▼              ▼           ▼
+                          ⭣          ⭣           ⭣              ⭣           ⭣
                      momentum    intel      counterfactual   tactical   narrative
                      worker      worker     worker           worker     worker
                      (EWMA)      (LLM+RAG)  (CRN Monte Carlo) (Weaviate)  (IsolationForest)
                           │          │           │              │           │
                           └──────────┴─────┬─────┴──────────────┴───────────┘
-                                            ▼
+                                            ⭣
                                     Agent Layer (Ollama → Groq → template)
                                             │
-                                            ▼
+                                            ⭣
                               FastAPI SSE + REST ──► Next.js UI
 ```
 
@@ -212,21 +213,21 @@ One Redis connection, one Uvicorn process, seven `asyncio` tasks. Workers read a
  worldcup26.ir            StatsBomb Open Data           The Odds API
  (score, status, clock)   (WC 2018/2022 events)         (bookmaker odds)
         │                          │                          │
-        ▼                          ▼                          ▼
+        ⭣                          ⭣                          ⭣
  hybrid_producer.py     rag_indexer.py / tactical_indexer.py   odds_api_client.py
  (30s poll)              momentum_trainer.py / backtest_elo    (on demand, 900s TTL cache)
         │               (offline, on demand per proxy match)          │
-        ▼                          ▼                          ▼
+        ⭣                          ⭣                          ⭣
  status normalize        event replay, feature extraction     consensus average
  scorer parse            narrative + PPDA document build       Shin de-vig
  Elo-distance proxy match
         │                          │                          │
-        ▼                          ▼                          ▼
+        ⭣                          ⭣                          ⭣
    MatchState / TeamStats    Weaviate (NarrativeArcs,     prior_builder.py
    MatchEvent                TacticalProfiles)            (W/D/L probabilities)
         │                                                       │
         └───────────────────────┬───────────────────────────────┘
-                                 ▼
+                                 ⭣
                               Redis
                     match:{id}:state, match:{id}:momentum,
                     match:{id}:intel:*, predict:*
@@ -243,7 +244,7 @@ One Redis connection, one Uvicorn process, seven `asyncio` tasks. Workers read a
                             |
               narrative_spike_detector.py (60s tick)
               per-source rate, mock fallback, four-dim vector
-                            ▼
+                            ⭣
                           Redis
               narrative:spike:*, narrative:trending:latest
 ```
