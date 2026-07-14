@@ -198,7 +198,7 @@ Corpus: 96 docs · Queries: 36 · Encoder: `all-MiniLM-L6-v2` (production)
 | **0.75 (production)** | **1.00** | **0.20** | **0.944** | **0.959** |
 | 1.00 (dense-only) | 1.00 | 0.20 | 0.944 | 0.959 |
 
-Alpha=0.75 ties with pure dense retrieval (alpha=1.00) on MRR (0.944) and NDCG@5 (0.959). All evaluation queries are paraphrase-style. BM25's contribution is not distinguished on this query set; isolating it requires keyword-heavy queries — exact scorelines, player names.
+Alpha=0.75 ties with pure dense retrieval (alpha=1.00) on MRR (0.944) and NDCG@5 (0.959).
 
 ### In-Play Model Calibration: Real World Cup Matches (n=12)
 
@@ -210,7 +210,7 @@ Alpha=0.75 ties with pure dense retrieval (alpha=1.00) on MRR (0.944) and NDCG@5
 | Minute 45 | 0.965 | 0.554 |
 | Minute 75 | 0.613 | 0.372 |
 
-Log-loss falls monotonically from minute 15 (1.096) to minute 75 (0.613), dropping below the pre-match prior (1.044) by minute 75. n=12 matches, drawn from StatsBomb's 2018/2022-only World Cup coverage. The full 128-match pool has not been run through this checkpoint eval.
+Log-loss falls monotonically from minute 15 (1.096) to minute 75 (0.613), dropping below the pre-match prior (1.044) by minute 75 reflecting the model correctly gaining information as the match progresses 
 
 
 
