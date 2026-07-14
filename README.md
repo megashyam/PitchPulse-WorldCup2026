@@ -390,7 +390,7 @@ $$
 \begin{aligned}
 p_{\text{draw}}
 &=
-\operatorname{clip}
+\mathrm{clip}
 \left(
 0.25e^{-\Delta R/450}+0.05,\;
 0.10,\;
@@ -434,7 +434,7 @@ $$
 $$
 
 $$
-P(g_h,g_a)=\operatorname{Pois}(g_h;\lambda_{\text{home}})\cdot\operatorname{Pois}(g_a;\lambda_{\text{away}}),\qquad g_h,g_a\in[0,8]
+P(g_h,g_a)=\mathrm{Pois}(g_h;\lambda_{\text{home}})\cdot\mathrm{Pois}(g_a;\lambda_{\text{away}}),\qquad g_h,g_a\in[0,8]
 $$
 
 where
@@ -449,7 +449,7 @@ A red card multiplies the offending team's scoring rate by **0.72** and the oppo
 **Momentum** is EWMA-smoothed and scored by logistic regression, executing in microseconds with fully inspectable inputs:
 
 $$
-\operatorname{EWMA}_t=\alpha x_t+(1-\alpha)\operatorname{EWMA}_{t-1},\qquad\alpha=0.3
+\mathrm{EWMA}_t=\alpha x_t+(1-\alpha)\mathrm{EWMA}_{t-1},\qquad\alpha=0.3
 $$
 
 $$
@@ -483,7 +483,7 @@ $$
 **Narrative anomaly detection** fits a separate `IsolationForest` (`contamination=0.05`, 100 estimators) per tracked topic, refit every 30 ticks on a rolling 72-hour window of four-source activity, scoring every new observation against it. Per-topic baselines correct for activity volume differences between heavily-followed and lightly-followed teams:
 
 $$
-\mathrm{severity}=\operatorname{clip}\left(\frac{-s-0.10}{0.5},0,1\right)
+\mathrm{severity}=\mathrm{clip}\left(\frac{-s-0.10}{0.5},0,1\right)
 $$
 
 where $s$ is the raw anomaly score. A spike fires when:
