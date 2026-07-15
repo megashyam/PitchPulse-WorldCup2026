@@ -475,7 +475,7 @@ $$
 $$
 
 $$
-\text{press\_intensity}=0.7\,\min\!\left(1,\frac{8}{\mathrm{PPDA}}\right)+0.3\,\min\!\left(1,\frac{\text{pressures}}{150}\right)
+\text{pressintensity}=0.7\,\min\!\left(1,\frac{8}{\mathrm{PPDA}}\right)+0.3\,\min\!\left(1,\frac{\text{pressures}}{150}\right)
 $$
 
 ---
