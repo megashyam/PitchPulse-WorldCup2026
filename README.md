@@ -94,11 +94,14 @@ The backend follows a single-process architecture to maintain in-memory analytic
 
 ## Core Features
 
-1. **Live Match Intelligence**
+1.  **Live Match Intelligence**
     - Runs on a 30-second worker cycle using live match state and momentum signals.
     - Evaluates goals, cards, momentum shifts, and scoreline-versus-performance divergence to determine when deeper analysis is required.
     - Uses retrieval-grounded generation for high-value events and deterministic numeric templates for lower-value updates or generation failures.
     - Streams concise match narratives to the frontend through SSE using the same computed metrics as the fallback path.
+
+    ![Live Match Intelligence](data/05-match-live.png)
+---
 
 2. **The Counterfactual What-If Engine**
     - Analyzes the tournament impact of major match events including goals, cards, penalties, and substitutions.
@@ -106,16 +109,25 @@ The backend follows a single-process architecture to maintain in-memory analytic
     - Uses deterministic Monte Carlo simulation with bounded compute controls to isolate event impact.
     - Outputs probability shifts, team-level tournament deltas, and a simulation-grounded explanation.
 
+    ![Counterfactual What-If Engine](data/03-match-counterfactual.png)
+---
+
 3. **The Tournament Simulation Engine**
     - Simulates the complete 48-team World Cup format using Elo ratings with optional market-odds calibration.
     - Uses fully vectorized NumPy execution across group and knockout stages for efficient large-scale Monte Carlo simulation.
     - Produces team advancement probabilities, championship odds, and confidence intervals for tournament predictions.
     - Powers both the prediction API and the counterfactual analysis engine.
 
+    ![Tournament Simulation Engine](data/06-match-predictor.png)
+---
+
 4. **Tactical Intelligence**
     - Converts live match statistics such as possession, shot volume, and passing accuracy into a tactical style representation.
     - Retrieves similar historical pressing fingerprints from the StatsBomb-based tactical index using embedding similarity and Weaviate retrieval.
     - Provides historical tactical comparisons with live-statistics fallback when tactical retrieval is unavailable.
+
+    ![Tactical Intelligence](data/02-match-tactical.png)
+---
 
 5. **The Narrative Intelligence Hub**
     - Aggregates Mastodon, Bluesky, Google Trends, and Wikipedia signals every 60 seconds for tracked topics.
@@ -123,9 +135,14 @@ The backend follows a single-process architecture to maintain in-memory analytic
     - Combines anomaly signals with retrieval-grounded generation to explain whether activity represents isolated virality or broader real-world events.
     - Produces anomaly scores, source attribution, and validated narrative summaries.
 
+    ![Narrative Intelligence Hub](data/07-match-narrative.png)
+---
+
 6. **Pre-Match Briefing**
     - Generates pre-match analysis within a scheduled kickoff window using team context and retrieved historical precedent.
     - Produces grounded previews without relying on live match-state signals.
+
+    ![Pre-Match Briefing](data/04-match-briefing.png)
 
 ## The Stack
 
